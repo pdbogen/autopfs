@@ -17,6 +17,10 @@ push: .push
 	docker tag autopfs ${IMAGE_URL}
 	touch .docker
 
-autopfs: ${shell find -name \*.go}
+autopfs: ${shell find -name \*.go} .vendor
 	go fmt github.com/pdbogen/autopfs/...
 	go build -o autopfs github.com/pdbogen/autopfs/server
+
+.vendor: vendor/vendor.json
+	govendor sync
+	touch .vendor
