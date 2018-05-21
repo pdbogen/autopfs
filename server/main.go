@@ -94,13 +94,16 @@ var log = log2.Log
 
 func Welcome(rw http.ResponseWriter, req *http.Request) {
 	rw.Header().Add("content-type", "text/html")
-	fmt.Fprintf(rw, "Welcome! Provide your Paizo email and password below to generate a CSV export of your adventures.<br/>")
-	fmt.Fprintf(rw, "Your email address and password are never stored or logged by this system.<br/>")
-	fmt.Fprintf(rw, "<form method=POST action=/begin>")
-	fmt.Fprintf(rw, "<input name=email placeholder=\"e-mail address\"><br/>")
-	fmt.Fprintf(rw, "<input type=password name=password placeholder=\"password\"><br/>")
-	fmt.Fprintf(rw, "<input type=submit><br/>")
-	fmt.Fprintf(rw, "</form>")
+	fmt.Fprintf(rw, `
+Welcome! Provide your <em>Paizo email and password</em> below to generate a CSV export of your adventures.<br/>
+Your email address and password are never stored or logged by this system.<br/>
+<form method=POST action=/begin>
+  <input name=email placeholder="e-mail address"><br/>
+  <input type=password name=password placeholder="password"><br/>
+  <input type=submit><br/>
+</form><br/>
+This tool is open source. You're more than welcome to inspect the <a href="https://github.com/pdbogen/autopfs">Source Code</a> if that will help you trust it.<br/>
+	`)
 }
 
 func Begin(rw http.ResponseWriter, req *http.Request) {
