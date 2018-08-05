@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 	"github.com/op/go-logging"
+	"strconv"
 )
 
 var log = logging.MustGetLogger("paizo")
@@ -90,10 +91,34 @@ func Login(email, pass string) (*Paizo, error) {
 	return ret, nil
 }
 
+var countRegexp = regexp.MustCompile(`\d+\s+to\s+\d+\s+of\s+(\d+)`)
+
+func GetSessionCount(bow *browser.Browser) (int, error) {
+	totalElem := bow.Find("div#results table tbody tr td").FilterFunction(func(_ int, selection *goquery.Selection) bool {
+		return countRegexp.MatchString(selection.Text())
+	})
+
+	if totalElem.Size() != 1 {
+		return -1, fmt.Errorf("%d TDs found matching session count regex, expected one", totalElem.Size())
+	}
+
+	totalSubmatches := countRegexp.FindStringSubmatch(totalElem.Text())
+	if len(totalSubmatches) != 2 {
+		return -1, errors.New("surprisingly, found matching td but did not contain exactly two submatches")
+	}
+
+	total, err := strconv.Atoi(totalSubmatches[1])
+	if err != nil {
+		return -1, fmt.Errorf("total submatch %q could not be parsed as integer: %v", totalSubmatches[1], err)
+	}
+
+	return total, nil
+}
+
 // GetSessions returns a de-duplicated (see DeDupe) list of sessions for the user that the Paizo object is logged into.
 // If sessions cannot be retrieved or parse, err is non-nil. In such a case, sessions may by non-nil and still contain
 // useful data, especially if the error related to the parsing of a specific session.
-func (p *Paizo) GetSessions(player bool) (sessions []*Session, err error) {
+func (p *Paizo) GetSessions(player bool, progress func(cur, total int)) (sessions []*Session, err error) {
 	bow := p.bow
 	parseErrors := []string{}
 
@@ -115,16 +140,19 @@ func (p *Paizo) GetSessions(player bool) (sessions []*Session, err error) {
 		log.Debugf("found %d TRs in table in div with id=results", rows.Size())
 		for i := 0; i < rows.Size(); i++ {
 			row := rows.Slice(i, i+1)
-			datetime := row.Find("td").First().Find("time").AttrOr("datetime", "")
-			if datetime == "" {
-				log.Debugf("encountered row %q where first column is not datetime", row.Text())
-				continue
-			}
 
 			cells := row.Find("td").Map(func(i int, cell *goquery.Selection) string {
 				return strings.TrimSpace(cell.Text())
 			})
-			cells[0] = datetime
+
+			if len(cells) < 7 {
+				continue
+			}
+
+			datetime := row.Find("td").First().Find("time").AttrOr("datetime", "")
+			if datetime != "" {
+				cells[0] = datetime
+			}
 
 			sess, err := sessionFromCells(cells, player)
 			if err != nil {
@@ -140,6 +168,15 @@ func (p *Paizo) GetSessions(player bool) (sessions []*Session, err error) {
 				}
 			}
 			sessions = append(sessions, sess)
+		}
+
+		if progress != nil {
+			total, err := GetSessionCount(bow)
+			if err != nil {
+				log.Warningf("getting total session count: %v", err)
+			} else {
+				progress(len(sessions), total)
+			}
 		}
 
 		next := bow.Find("a").FilterFunction(func(_ int, a *goquery.Selection) bool {

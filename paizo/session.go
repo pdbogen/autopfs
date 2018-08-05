@@ -66,6 +66,9 @@ func (s Session) Record() (ret []string) {
 		s.Variant,
 		s.ScenarioName,
 	}
+	if s.Date.IsZero() {
+		ret[0] = "MISSING"
+	}
 	if s.Player && s.GM {
 		ret = append(ret, "P/GM")
 	} else if s.Player {
@@ -174,13 +177,17 @@ func sessionFromCells(cells []string, player bool) (*Session, error) {
 	}
 	ret := &Session{}
 
-	t, err := time.Parse(time.RFC3339, cells[0])
-	if err != nil {
-		return ret, fmt.Errorf("expected first cell to be RFC3339 date, but could not parse %q: %s", cells[0], err)
+	if cells[0] != "" {
+		t, err := time.Parse(time.RFC3339, cells[0])
+		if err != nil {
+			return ret, fmt.Errorf("expected first cell to be RFC3339 date, but could not parse %q: %s", cells[0], err)
+		}
+		ret.Date = t
+	} else {
+		ret.Date = time.Time{}
 	}
-	ret.Date = t
 
-	err = ret.ParseName(cells[5])
+	err := ret.ParseName(cells[5])
 	if err != nil {
 		return ret, fmt.Errorf("expected sixth cell to be scenario name, but could not parse %q: %s", cells[5], err)
 	}

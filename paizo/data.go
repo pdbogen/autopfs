@@ -13,6 +13,7 @@ var staticScenarioNumbers = map[string][]int{
 var moduleStrings = []string{
 	`^Starfinder Adventure Path #`,
 	`^Starfinder AP:`,
+	`^Starfinder Skitter Shot$`,
 	`^Starfinder Society Roleplaying Guild Quest: `,
 	`^Intro 1:`,
 	`^Feast of Ravenmoor$`,
