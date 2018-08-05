@@ -29,7 +29,9 @@ func main() {
 	log.Debug("Login OK!")
 
 	log.Debug("Retrieving player sessions...")
-	psessions, err := pzo.GetSessions(true)
+	psessions, err := pzo.GetSessions(true, func(cur, total int) {
+		log.Debugf("%d/%d", cur, total)
+	})
 	if err != nil {
 		if psessions == nil {
 			log.Fatalf("retrieving player sessions: %s", err)
@@ -39,7 +41,9 @@ func main() {
 	}
 	log.Infof("got %d player sessions", len(psessions))
 
-	gsessions, err := pzo.GetSessions(false)
+	gsessions, err := pzo.GetSessions(false, func(cur, total int) {
+		log.Debugf("%d/%d", cur, total)
+	})
 	if err != nil {
 		if psessions == nil {
 			log.Fatalf("retrieving GM sessions: %s", err)
