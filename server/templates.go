@@ -13,6 +13,12 @@ var HeaderTemplate = template.Must(TemplateRoot.New("header").Parse(`
 tr:nth-of-type(even) {
 	background: #c0c0c0;
 }
+a {
+	text-decoration: none;
+}
+a:hover {
+	text-decoration: underline;
+}
 </style>
 </head>
 <body>`))
@@ -22,11 +28,23 @@ var FooterTemplate = template.Must(TemplateRoot.New("footer").Parse(`
 `))
 var HtmlTemplate = template.Must(TemplateRoot.New("html").Parse(`
 {{template "header"}}
+{{$Id:=.id}}
+{{$Sort:=.Sort}}
+{{$Desc:=.Desc}}
 <a href="/csv?id={{.id}}">Download as CSV</a> or <a href="/status?id={{.id}}&view=true">View the Job Log</a>
 <table>
 	<thead>
 		<tr>
-			{{range .Headers}}<th>{{.}}</th>{{end}}
+			{{range $hdr := .Headers}}<th>
+				<a href="/html?id={{$Id}}&sort={{$hdr}}{{if and ($hdr | eq $Sort) ($Desc | eq "")}}&desc=1{{end}}">
+					{{$hdr}}
+					{{if ($hdr | eq $Sort)}}{{if $Desc | eq "" }}
+						▲
+					{{else}}
+						▼
+					{{end}}{{end}}
+				</a>
+			</th>{{end}}
 		</tr>
 	</thead>
 	<tbody>

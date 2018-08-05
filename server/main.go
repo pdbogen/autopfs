@@ -126,53 +126,6 @@ func Status(db *bolt.DB) func(rw http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func Html(db *bolt.DB) func(rw http.ResponseWriter, req *http.Request) {
-	return func(rw http.ResponseWriter, req *http.Request) {
-
-		if err := req.ParseForm(); err != nil {
-			http.Error(rw, "hmm, that request didn't look right. Go back and try again, perhaps?", http.StatusBadRequest)
-			return
-		}
-
-		id := req.FormValue("id")
-		if id == "" {
-			http.Error(rw, "Sorry; I can't get a request status without a request id.", http.StatusBadRequest)
-			return
-		}
-
-		job, err := Load(db, id)
-		if err != nil {
-			http.Error(rw, msgInternalServerError, http.StatusInternalServerError)
-			return
-		}
-		if job == nil {
-			http.NotFound(rw, req)
-		}
-
-		if !job.Done() {
-			http.Redirect(rw, req, "/status?id="+id, http.StatusFound)
-			return
-		}
-
-		rw.Header().Set("Content-Type", "text/html")
-		rw.WriteHeader(http.StatusOK)
-
-		rows := [][]string{}
-		for _, s := range job.Sessions {
-			rows = append(rows, s.Record())
-		}
-		err = HtmlTemplate.Execute(rw, map[string]interface{}{
-			"Title":   "HTML View",
-			"id":      job.JobId,
-			"Headers": paizo.CsvHeader,
-			"Rows":    rows,
-		})
-		if err != nil {
-			log.Errorf("Executing HtmlTemplate: %v", err)
-		}
-	}
-}
-
 func Csv(db *bolt.DB) func(rw http.ResponseWriter, req *http.Request) {
 	return func(rw http.ResponseWriter, req *http.Request) {
 
