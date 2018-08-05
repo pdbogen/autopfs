@@ -2,9 +2,10 @@ package main
 
 import (
 	"github.com/coreos/bbolt"
+	"github.com/pdbogen/autopfs/paizo"
 	"net/http"
 	"sort"
-	"github.com/pdbogen/autopfs/paizo"
+	"strconv"
 )
 
 func Html(db *bolt.DB) func(rw http.ResponseWriter, req *http.Request) {
@@ -47,6 +48,29 @@ func Html(db *bolt.DB) func(rw http.ResponseWriter, req *http.Request) {
 		switch sortCol {
 		case "": // default
 		case "Date": // default
+		case "Season":
+			fallthrough
+		case "Scenario Number":
+			seasonCol := 0
+			scenarioCol := 0
+			for idx, column := range paizo.CsvHeader {
+				if column == "Season" {
+					seasonCol = idx
+				}
+				if column == "Scenario Number" {
+					scenarioCol = idx
+				}
+			}
+			sort.Slice(rows, func(i, j int) bool {
+				seasonI, _ := strconv.Atoi(rows[i][seasonCol])
+				seasonJ, _ := strconv.Atoi(rows[j][seasonCol])
+				scenarioI, _ := strconv.Atoi(rows[i][scenarioCol])
+				scenarioJ, _ := strconv.Atoi(rows[j][scenarioCol])
+				if seasonI == seasonJ {
+					return scenarioI < scenarioJ
+				}
+				return seasonI < seasonJ
+			})
 		default:
 			col := 0
 			for idx, column := range paizo.CsvHeader {
