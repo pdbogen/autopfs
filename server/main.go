@@ -1,20 +1,20 @@
 package main
 
 import (
+	"context"
 	"encoding/csv"
+	"flag"
 	"fmt"
+	"github.com/coreos/bbolt"
+	"github.com/op/go-logging"
 	log2 "github.com/pdbogen/autopfs/log"
 	"github.com/pdbogen/autopfs/paizo"
 	"math/rand"
 	"net/http"
-	"time"
-	"github.com/coreos/bbolt"
-	"flag"
 	"os"
-	"sync"
 	"os/signal"
-	"context"
-	"github.com/op/go-logging"
+	"sync"
+	"time"
 )
 
 var log = log2.Log

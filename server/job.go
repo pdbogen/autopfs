@@ -1,12 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"github.com/coreos/bbolt"
 	"github.com/pdbogen/autopfs/paizo"
 	"sync"
 	"time"
-	"github.com/coreos/bbolt"
-	"encoding/json"
 )
 
 type Job struct {

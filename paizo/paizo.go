@@ -6,10 +6,10 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/headzoo/surf"
 	"github.com/headzoo/surf/browser"
-	"regexp"
-	"strings"
 	"github.com/op/go-logging"
+	"regexp"
 	"strconv"
+	"strings"
 )
 
 var log = logging.MustGetLogger("paizo")
