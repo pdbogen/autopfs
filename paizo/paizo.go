@@ -8,8 +8,10 @@ import (
 	"github.com/headzoo/surf/browser"
 	"regexp"
 	"strings"
-	"time"
+	"github.com/op/go-logging"
 )
+
+var log = logging.MustGetLogger("paizo")
 
 type Paizo struct {
 	bow *browser.Browser
@@ -28,18 +30,19 @@ func AddModule(mod *regexp.Regexp) {
 // If Login is not able to login, a non-nil error is returned indicating why. This attempts to include any error message
 // reported by Paizo, as well.
 func Login(email, pass string) (*Paizo, error) {
-	bow := surf.NewBrowser()
+	browserObject := surf.NewBrowser()
 	ret := &Paizo{
-		bow: bow,
+		bow: browserObject,
 	}
 
-	err := bow.Open("https://paizo.com/organizedPlay/myAccount")
+	err := browserObject.Open("https://paizo.com/organizedPlay/myAccount")
 	if err != nil {
 		return nil, fmt.Errorf("opening login page: %s", err)
 	}
 
+	log.Debugf("Got login page %q", browserObject.Title())
 	var form browser.Submittable
-	for _, f := range bow.Forms() {
+	for _, f := range browserObject.Forms() {
 		if f == nil {
 			continue
 		}
@@ -48,6 +51,7 @@ func Login(email, pass string) (*Paizo, error) {
 			continue
 		}
 		if dom.Find("input[name=e]").Size() == 1 {
+			log.Debug("Got input with name=e")
 			form = f
 			break
 		}
@@ -66,20 +70,23 @@ func Login(email, pass string) (*Paizo, error) {
 		return nil, fmt.Errorf("setting password input `z`: %s", err)
 	}
 
+	log.Debug("email and password fields set")
 	err = form.Submit()
 	if err != nil {
 		return nil, fmt.Errorf("submitting login form: %s", err)
 	}
 
-	if !strings.Contains(bow.Title(), "My Organized Play") {
-		err := fmt.Errorf("login failed! title was %q", bow.Title())
-		am := bow.Find("div.alert-message")
+	log.Debugf("Submitted login; now at %q", browserObject.Title())
+	if !strings.Contains(browserObject.Title(), "My Organized Play") {
+		err := fmt.Errorf("login failed! title was %q", browserObject.Title())
+		am := browserObject.Find("div.alert-message")
 		if am.Size() > 0 {
 			err = fmt.Errorf("%s; alert message was %q", err, am.Text())
 		}
 		return nil, err
 	}
 
+	log.Debugf("Login appears successful!")
 	return ret, nil
 }
 
@@ -100,24 +107,24 @@ func (p *Paizo) GetSessions(player bool) (sessions []*Session, err error) {
 	if err := bow.Open(pageUrl); err != nil {
 		return nil, fmt.Errorf("opening page %q: %s", pageUrl, err)
 	}
+	log.Debugf("Loaded sessions page %q", bow.Title())
 	sessions = []*Session{}
 
 	for {
 		rows := bow.Find("div#results table tr")
+		log.Debugf("found %d TRs in table in div with id=results", rows.Size())
 		for i := 0; i < rows.Size(); i++ {
 			row := rows.Slice(i, i+1)
-			cells := row.Find("td").Map(func(i int, cell *goquery.Selection) string {
-				if i == 0 {
-					return strings.TrimSpace(cell.Find("time").AttrOr(
-						"datetime",
-						time.Unix(0, 0).Format(time.RFC3339)),
-					)
-				}
-				return strings.TrimSpace(cell.Text())
-			})
-			if len(cells) != 12 {
+			datetime := row.Find("td").First().Find("time").AttrOr("datetime", "")
+			if datetime == "" {
+				log.Debugf("encountered row %q where first column is not datetime", row.Text())
 				continue
 			}
+
+			cells := row.Find("td").Map(func(i int, cell *goquery.Selection) string {
+				return strings.TrimSpace(cell.Text())
+			})
+			cells[0] = datetime
 
 			sess, err := sessionFromCells(cells, player)
 			if err != nil {

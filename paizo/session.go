@@ -174,22 +174,21 @@ func sessionFromCells(cells []string, player bool) (*Session, error) {
 	}
 	ret := &Session{}
 
-	err := ret.ParseName(cells[5])
+	t, err := time.Parse(time.RFC3339, cells[0])
 	if err != nil {
-		return ret, fmt.Errorf("could not parse scenario name %q: %s", cells[5], err)
-	}
-
-	dt := cells[0]
-	t, err := time.Parse(time.RFC3339, dt)
-	if err != nil {
-		return ret, fmt.Errorf("could not parse datetime %q: %s", dt, err)
+		return ret, fmt.Errorf("expected first cell to be RFC3339 date, but could not parse %q: %s", cells[0], err)
 	}
 	ret.Date = t
+
+	err = ret.ParseName(cells[5])
+	if err != nil {
+		return ret, fmt.Errorf("expected sixth cell to be scenario name, but could not parse %q: %s", cells[5], err)
+	}
 
 	evNumStr := cells[1]
 	evNum, err := strconv.ParseInt(evNumStr, 10, 64)
 	if err != nil {
-		return ret, fmt.Errorf("parsing event number %q: %s", evNumStr, err)
+		return ret, fmt.Errorf("expected second cell to be event number, but could not parse %q: %s", evNumStr, err)
 	}
 	ret.EventNumber = append(ret.EventNumber, evNum)
 
@@ -197,7 +196,7 @@ func sessionFromCells(cells []string, player bool) (*Session, error) {
 		charNumStr := cells[6]
 		charNumDash := strings.Index(charNumStr, "-")
 		if charNumDash == -1 {
-			return ret, fmt.Errorf("could not parse character number %q", charNumStr)
+			return ret, fmt.Errorf("expected seventh cell to contain character number, but %q did not contain dash", charNumStr)
 		}
 		charNumPart := strings.TrimLeft(charNumStr[charNumDash:], "-")
 		if charNumPart == "" {
@@ -205,7 +204,7 @@ func sessionFromCells(cells []string, player bool) (*Session, error) {
 		} else {
 			charNum, err := strconv.Atoi(charNumPart)
 			if err != nil {
-				return ret, fmt.Errorf("in %q could not parse character number part %q: %s", charNumStr, charNumPart, err)
+				return ret, fmt.Errorf("in seventh cell %q, could not parse character number part %q: %s", charNumStr, charNumPart, err)
 			}
 			ret.Character = append(ret.Character, charNum)
 			if charNum >= 700 {

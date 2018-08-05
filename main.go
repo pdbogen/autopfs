@@ -21,11 +21,14 @@ func main() {
 	}
 	logging.SetLevel(lvl, log.Module)
 
+	log.Debug("Logging in...")
 	pzo, err := paizo.Login(*email, *pass)
 	if err != nil {
 		log.Fatalf("during login: %s", err)
 	}
+	log.Debug("Login OK!")
 
+	log.Debug("Retrieving player sessions...")
 	psessions, err := pzo.GetSessions(true)
 	if err != nil {
 		if psessions == nil {
