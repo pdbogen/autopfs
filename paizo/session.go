@@ -111,7 +111,7 @@ func (s *Session) ParseName(raw string) error {
 		if err == nil {
 			s.Season = season / 29
 			s.Number = season
-			s.ScenarioName = sn[strings.Index(sn, " ")+1:]
+			s.ScenarioName = strings.TrimSpace(sn[strings.Index(sn, " ")+1:])
 			return nil
 		}
 	}
@@ -120,7 +120,7 @@ func (s *Session) ParseName(raw string) error {
 	s.Number = -1
 
 	if sn[0] != '#' {
-		s.ScenarioName = raw
+		s.ScenarioName = strings.TrimSpace(raw)
 		for _, re := range modules {
 			if re.MatchString(raw) {
 				return nil
@@ -132,13 +132,13 @@ func (s *Session) ParseName(raw string) error {
 	sn = strings.TrimLeft(sn, "#")
 	term := strings.IndexAny(sn, "-–")
 	if term == -1 {
-		s.ScenarioName = raw
+		s.ScenarioName = strings.TrimSpace(raw)
 		return fmt.Errorf("parsing %q: no season terminator", raw)
 	}
 
 	season, err := strconv.Atoi(sn[0:term])
 	if err != nil {
-		s.ScenarioName = raw
+		s.ScenarioName = strings.TrimSpace(raw)
 		return fmt.Errorf("parsing %q: could not parse %q as number: %s", raw, sn[0:term], err)
 	}
 	s.Season = season
@@ -146,7 +146,7 @@ func (s *Session) ParseName(raw string) error {
 	sn = strings.TrimLeft(sn[term:], "-–")
 	term = strings.IndexAny(sn, ":— ")
 	if term == -1 {
-		s.ScenarioName = raw
+		s.ScenarioName = strings.TrimSpace(raw)
 		return fmt.Errorf("parsing %q: could not find scenario terminator", raw)
 	}
 
@@ -157,12 +157,12 @@ func (s *Session) ParseName(raw string) error {
 
 	number, err := strconv.Atoi(sn[0:term])
 	if err != nil {
-		s.ScenarioName = raw
+		s.ScenarioName = strings.TrimSpace(raw)
 		return fmt.Errorf("parsing %q: could not parse %q as scenario number: %s", raw, sn[0:term], err)
 	}
 
 	s.Number = number
-	s.ScenarioName = strings.TrimLeft(sn[term+len(s.Variant):], ":— ")
+	s.ScenarioName = strings.TrimSpace(strings.TrimLeft(sn[term+len(s.Variant):], ":— "))
 	return nil
 }
 
