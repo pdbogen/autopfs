@@ -28,4 +28,5 @@ var moduleStrings = []string{
 	`^City of Golden Death$`,
 	`^Quest: Honor's Echo$`,
 	`^Fangwood Keep$`,
+	`^Playtest Scenario #`,
 }

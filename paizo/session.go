@@ -166,44 +166,54 @@ func (s *Session) ParseName(raw string) error {
 	return nil
 }
 
+const (
+	dateCell     = 0
+	gmCell       = 1
+	scenarioCell = 2
+	eventCell    = 4
+	playerCell   = 7
+	prestigeCell = 10
+	maxCell      = 10
+)
+
 // sessionFromCells converts a list of cells (a 12-long string slice corresponding to the columnar format on the paizo
 // sessions page) to a hydrated Session object. The first cell is handled specially, and is intended to be an RFC3339
 // time string, which is retrieved from the `datetime` attribute of the `time` object that occupies the first cell.
 // most parse errors will return a non-nil error and a partially hydrated session object, but some parse errors will
 // return a `nil` session object.
-func sessionFromCells(cells []string, player bool) (*Session, error) {
-	if len(cells) < 7 {
-		return nil, fmt.Errorf("expected >=7 elements in cells, received %d", len(cells))
+func sessionFromCells(cells []string) (*Session, error) {
+	if len(cells) < maxCell {
+		return nil, fmt.Errorf("expected >=%d elements in cells, received %d", maxCell, len(cells))
 	}
 	ret := &Session{}
 
-	if cells[0] != "" {
-		t, err := time.Parse(time.RFC3339, cells[0])
+	if cells[dateCell] != "" {
+		t, err := time.Parse(time.RFC3339, cells[dateCell])
 		if err != nil {
-			return ret, fmt.Errorf("expected first cell to be RFC3339 date, but could not parse %q: %s", cells[0], err)
+			return ret, fmt.Errorf("expected first cell to be RFC3339 date, but could not parse %q: %s", cells[dateCell], err)
 		}
 		ret.Date = t
 	} else {
 		ret.Date = time.Time{}
 	}
 
-	err := ret.ParseName(cells[5])
+	err := ret.ParseName(cells[scenarioCell])
 	if err != nil {
-		return ret, fmt.Errorf("expected sixth cell to be scenario name, but could not parse %q: %s", cells[5], err)
+		return ret, fmt.Errorf("expected sixth cell to be scenario name, but could not parse %q: %s", cells[scenarioCell], err)
 	}
 
-	evNumStr := cells[1]
+	evNumStr := cells[eventCell]
 	evNum, err := strconv.ParseInt(evNumStr, 10, 64)
 	if err != nil {
 		return ret, fmt.Errorf("expected second cell to be event number, but could not parse %q: %s", evNumStr, err)
 	}
 	ret.EventNumber = append(ret.EventNumber, evNum)
 
-	if player {
-		charNumStr := cells[6]
+	if !strings.Contains(cells[prestigeCell], "GM") {
+		charNumStr := cells[playerCell]
 		charNumDash := strings.Index(charNumStr, "-")
 		if charNumDash == -1 {
-			return ret, fmt.Errorf("expected seventh cell to contain character number, but %q did not contain dash", charNumStr)
+			return ret, fmt.Errorf("expected eighth cell to contain character number, but %q did not contain dash", charNumStr)
 		}
 		charNumPart := strings.TrimLeft(charNumStr[charNumDash:], "-")
 		if charNumPart == "" {

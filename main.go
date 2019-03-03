@@ -28,30 +28,18 @@ func main() {
 	}
 	log.Debug("Login OK!")
 
-	log.Debug("Retrieving player sessions...")
-	psessions, err := pzo.GetSessions(true, func(cur, total int) {
+	log.Debug("Retrieving sessions...")
+	psessions, gsessions, err := pzo.GetSessions(func(cur, total int) {
 		log.Debugf("%d/%d", cur, total)
 	})
 	if err != nil {
 		if psessions == nil {
-			log.Fatalf("retrieving player sessions: %s", err)
+			log.Fatalf("retrieving sessions: %s", err)
 		} else {
-			log.Errorf("retrieving player sessions: %s", err)
+			log.Errorf("retrieving sessions: %s", err)
 		}
 	}
-	log.Infof("got %d player sessions", len(psessions))
-
-	gsessions, err := pzo.GetSessions(false, func(cur, total int) {
-		log.Debugf("%d/%d", cur, total)
-	})
-	if err != nil {
-		if psessions == nil {
-			log.Fatalf("retrieving GM sessions: %s", err)
-		} else {
-			log.Errorf("retrieving GM sessions: %s", err)
-		}
-	}
-	log.Infof("got %d GM sessions", len(gsessions))
+	log.Infof("got %d player sessions, %d gm sessions", len(psessions), len(gsessions))
 
 	sessions := paizo.DeDupe(append(psessions, gsessions...))
 

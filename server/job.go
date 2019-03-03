@@ -99,13 +99,13 @@ func (j *Job) Run(db *bolt.DB, wg *sync.WaitGroup) {
 		return
 	}
 
-	if err := j.UpdateStatus(db, "player", "Getting player sessions..."); err != nil {
+	if err := j.UpdateStatus(db, "sessions", "Getting player sessions..."); err != nil {
 		log.Error(err)
 	}
 
-	ps, err := paizoSession.GetSessions(true, func(cur, total int) {
-		if err := j.UpdateStatus(db, "player",
-			fmt.Sprintf("Getting player sessions (%d/%d)...", cur, total),
+	ps, gs, err := paizoSession.GetSessions(func(cur, total int) {
+		if err := j.UpdateStatus(db, "sessions",
+			fmt.Sprintf("Getting sessions (%d/%d)...", cur, total),
 		); err != nil {
 			log.Error(err)
 		}
@@ -127,31 +127,11 @@ func (j *Job) Run(db *bolt.DB, wg *sync.WaitGroup) {
 	if err := j.UpdateStatus(db, "player", fmt.Sprintf("Got %d unique player scenarios", len(ps))); err != nil {
 		log.Error(err)
 	}
-	if err := j.UpdateStatus(db, "gm", "Getting GM sessions..."); err != nil {
-		log.Error(err)
-	}
 
-	gs, err := paizoSession.GetSessions(false, func(cur, total int) {
-		if err := j.UpdateStatus(db, "gm", fmt.Sprintf("Getting GM sessions (%d/%d)...", cur, total)); err != nil {
-			log.Error(err)
-		}
-	})
-
-	if err != nil {
-		log.Errorf("getting gm sessions for job %q: %v", j.JobId, err)
-		if gs == nil {
-			if err := j.UpdateStatus(db, "error", "fatal error: "+err.Error()); err != nil {
-				log.Error(err)
-			}
-			return
-		}
-		if err := j.UpdateStatus(db, j.State, "GM Session Parse Errors (not a big deal): "+err.Error()); err != nil {
-			log.Error(err)
-		}
-	}
 	if err := j.UpdateStatus(db, "gm", fmt.Sprintf("Got %d unique GM scenarios", len(gs))); err != nil {
 		log.Error(err)
 	}
+
 	j.Sessions = paizo.DeDupe(append(ps, gs...))
 	if err := j.UpdateStatus(db, JobStateDone, fmt.Sprintf("Done! %d total unique scenarios", len(j.Sessions))); err != nil {
 		log.Warningf("saving completed job %q: %v", j.JobId, err)

@@ -41,7 +41,7 @@ func Login(email, pass string) (*Paizo, error) {
 		return nil, fmt.Errorf("opening login page: %s", err)
 	}
 
-	log.Debugf("Got login page %q", browserObject.Title())
+	log.Debugf("Got login page %q, %q", browserObject.Title(), browserObject.Url().String())
 	var form browser.Submittable
 	for _, f := range browserObject.Forms() {
 		if f == nil {
@@ -118,22 +118,18 @@ func GetSessionCount(bow *browser.Browser) (int, error) {
 // GetSessions returns a de-duplicated (see DeDupe) list of sessions for the user that the Paizo object is logged into.
 // If sessions cannot be retrieved or parse, err is non-nil. In such a case, sessions may by non-nil and still contain
 // useful data, especially if the error related to the parsing of a specific session.
-func (p *Paizo) GetSessions(player bool, progress func(cur, total int)) (sessions []*Session, err error) {
+func (p *Paizo) GetSessions(progress func(cur, total int)) (playerSessions []*Session, gmSessions []*Session, err error) {
 	bow := p.bow
 	parseErrors := []string{}
 
-	var pageUrl string
-	if player {
-		pageUrl = "https://secure.paizo.com/cgi-bin/WebObjects/Store.woa/wa/browse?path=organizedPlay/myAccount/playersessions#tabs"
-	} else {
-		pageUrl = "https://secure.paizo.com/cgi-bin/WebObjects/Store.woa/wa/browse?path=organizedPlay/myAccount/gmsessions#tabs"
-	}
+	pageUrl := "https://paizo.com/cgi-bin/WebObjects/Store.woa/wa/browse?path=organizedPlay/myAccount/allsessions#tabs"
 
 	if err := bow.Open(pageUrl); err != nil {
-		return nil, fmt.Errorf("opening page %q: %s", pageUrl, err)
+		return nil, nil, fmt.Errorf("opening page %q: %s", pageUrl, err)
 	}
 	log.Debugf("Loaded sessions page %q", bow.Title())
-	sessions = []*Session{}
+	playerSessions = []*Session{}
+	gmSessions = []*Session{}
 
 	for {
 		rows := bow.Find("div#results table tr")
@@ -145,16 +141,17 @@ func (p *Paizo) GetSessions(player bool, progress func(cur, total int)) (session
 				return strings.TrimSpace(cell.Text())
 			})
 
-			if len(cells) < 7 {
+			if len(cells) < maxCell {
+				log.Debugf("Skipping row %q with %d cells", strings.Join(cells, ","), len(cells))
 				continue
 			}
 
 			datetime := row.Find("td").First().Find("time").AttrOr("datetime", "")
 			if datetime != "" {
-				cells[0] = datetime
+				cells[dateCell] = datetime
 			}
 
-			sess, err := sessionFromCells(cells, player)
+			sess, err := sessionFromCells(cells)
 			if err != nil {
 				parseErrors = append(parseErrors, fmt.Sprintf("trouble parsing row %q: %s",
 					regexp.MustCompile(" +").ReplaceAllString(
@@ -164,10 +161,15 @@ func (p *Paizo) GetSessions(player bool, progress func(cur, total int)) (session
 					err,
 				))
 				if sess == nil {
-					return nil, fmt.Errorf("fatal error parsing scenario row: %s", err)
+					return nil, nil, fmt.Errorf("fatal error parsing scenario row: %s", err)
 				}
 			}
-			sessions = append(sessions, sess)
+
+			if sess.GM {
+				gmSessions = append(gmSessions, sess)
+			} else {
+				playerSessions = append(playerSessions, sess)
+			}
 		}
 
 		if progress != nil {
@@ -175,7 +177,7 @@ func (p *Paizo) GetSessions(player bool, progress func(cur, total int)) (session
 			if err != nil {
 				log.Warningf("getting total session count: %v", err)
 			} else {
-				progress(len(sessions), total)
+				progress(len(gmSessions)+len(playerSessions), total)
 			}
 		}
 
@@ -189,12 +191,12 @@ func (p *Paizo) GetSessions(player bool, progress func(cur, total int)) (session
 
 		nextUrl := fmt.Sprintf("https://secure.paizo.com/%s", next.AttrOr("href", ""))
 		if err := bow.Open(nextUrl); err != nil {
-			return nil, fmt.Errorf("unexpected error clicking `next`: %s", err)
+			return nil, nil, fmt.Errorf("unexpected error clicking `next`: %s", err)
 		}
 	}
 	err = nil
 	if len(parseErrors) > 0 {
 		err = fmt.Errorf("Parse errors occurred: %s", strings.Join(parseErrors, ", "))
 	}
-	return DeDupe(sessions), err
+	return DeDupe(playerSessions), DeDupe(gmSessions), err
 }
