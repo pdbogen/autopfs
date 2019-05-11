@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/coreos/bbolt"
+	bolt "github.com/coreos/bbolt"
 	"github.com/pdbogen/autopfs/paizo"
 	"net/http"
 	"sort"
@@ -10,7 +10,6 @@ import (
 
 func Html(db *bolt.DB) func(rw http.ResponseWriter, req *http.Request) {
 	return func(rw http.ResponseWriter, req *http.Request) {
-
 		if err := req.ParseForm(); err != nil {
 			http.Error(rw, "hmm, that request didn't look right. Go back and try again, perhaps?", http.StatusBadRequest)
 			return
@@ -29,6 +28,7 @@ func Html(db *bolt.DB) func(rw http.ResponseWriter, req *http.Request) {
 		}
 		if job == nil {
 			http.NotFound(rw, req)
+			return
 		}
 
 		if !job.Done() {

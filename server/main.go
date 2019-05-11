@@ -5,7 +5,7 @@ import (
 	"encoding/csv"
 	"flag"
 	"fmt"
-	"github.com/coreos/bbolt"
+	bolt "github.com/coreos/bbolt"
 	"github.com/op/go-logging"
 	log2 "github.com/pdbogen/autopfs/log"
 	"github.com/pdbogen/autopfs/paizo"
