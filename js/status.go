@@ -47,7 +47,7 @@ func WsUrl() *url.URL {
 	if err != nil {
 		panic("parsing query " + wsUrl.RawQuery + ": " + err.Error())
 	}
-	v.Set("ws", "1")
+	wsUrl.Path += "/ws"
 	wsUrl.RawQuery = v.Encode()
 	return wsUrl
 }

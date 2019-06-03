@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func Status(db *bbolt.DB, JsHash, CssHash string) func(rw http.ResponseWriter, req *http.Request) {
+func Status(db *bbolt.DB, JsHash, CssHash string, websocket bool) func(rw http.ResponseWriter, req *http.Request) {
 	return func(rw http.ResponseWriter, req *http.Request) {
 		if err := req.ParseForm(); err != nil {
 			http.Error(rw, "hmm, that request didn't look right. Go back and try again, perhaps?", http.StatusBadRequest)
@@ -32,7 +32,7 @@ func Status(db *bbolt.DB, JsHash, CssHash string) func(rw http.ResponseWriter, r
 			return
 		}
 
-		if req.FormValue("ws") == "" {
+		if !websocket {
 			statusPage(job, JsHash, CssHash, rw, req)
 			return
 		}

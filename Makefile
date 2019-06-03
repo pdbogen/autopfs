@@ -24,3 +24,8 @@ autopfs: ${shell find -name \*.go} go.mod
 
 clean:
 	rm -f .push .docker autopfs
+
+tail:
+	ssh core@mapbot.cernu.us journalctl -u autopfs -f
+nginx_tail:
+	ssh core@mapbot.cernu.us journalctl -u nginx -f
