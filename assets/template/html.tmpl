@@ -1,0 +1,19 @@
+{{template "header" .}}
+<script>var Entrypoint = "Html"</script>
+{{$Id:=.id}}
+{{$Sort:=.Sort}}
+{{$Desc:=.Desc}}
+<div class="menu">
+    <div><a href="/csv?id={{.id}}">Download as CSV</a></div>
+    <div id="filters">
+    </div>
+    <div><a href="/status?id={{.id}}&view=true">View the Job Log</a></div>
+</div>
+<div class="activeFilters" id="activeFilters"></div>
+<div class="table">
+    <table id="jobTable">
+        <thead id="jobTableHead"></thead>
+        <tbody id="jobTableBody"></tbody>
+    </table>
+</div>
+{{template "footer"}}

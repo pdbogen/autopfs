@@ -2,94 +2,38 @@ package paizo
 
 import (
 	"fmt"
+	"github.com/pdbogen/autopfs/types"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
 )
 
 type Session struct {
-	Date         time.Time
-	EventNumber  []int64
-	Game         string
-	Season       int
-	Number       int
-	Variant      string
-	ScenarioName string
-	Character    []int
-	Player       bool
-	GM           bool
-}
-
-func (s Session) String() (ret string) {
-	ret = fmt.Sprintf("%s\t%d\t", s.Date.Format("2006-01-02"), s.EventNumber)
-	if s.Season >= 0 {
-		ret += fmt.Sprintf("%d-%02d%s\t", s.Season, s.Number, s.Variant)
-	} else {
-		ret += "N/A \t"
-	}
-	characters := []string{}
-	for _, char := range s.Character {
-		if char == -2 {
-			characters = append(characters, "GM")
-		} else {
-			characters = append(characters, strconv.Itoa(char))
-		}
-	}
-	ret += strings.Join(characters, ",")
-	ret += s.ScenarioName
-	return
+	types.Session
 }
 
 var CsvHeader = []string{"Date", "Event Number", "Character Number", "Season", "Scenario Number", "Variant", "Scenario Name", "Player/GM"}
 
-func (s Session) Record() (ret []string) {
-	events := []string{}
-	for _, e := range s.EventNumber {
-		events = append(events, strconv.FormatInt(e, 10))
-	}
-	characters := []string{}
-	for _, char := range s.Character {
-		if char == -2 {
-			characters = append(characters, "GM")
-		} else {
-			characters = append(characters, strconv.Itoa(char))
-		}
-	}
-	ret = []string{
-		s.Date.Format("2006-01-02"),
-		strings.Join(events, " "),
-		strings.Join(characters, " "),
-		strconv.Itoa(s.Season),
-		strconv.Itoa(s.Number),
-		s.Variant,
-		s.ScenarioName,
-	}
-	if s.Date.IsZero() {
-		ret[0] = "MISSING"
-	}
-	if s.Player && s.GM {
-		ret = append(ret, "P/GM")
-	} else if s.Player {
-		ret = append(ret, "P")
-	} else {
-		ret = append(ret, "GM")
-	}
-	return ret
-}
-
-var modules []*regexp.Regexp
+var starfinderModules, pathfinderModules, pathfinder2Modules []*regexp.Regexp
 
 func init() {
-	for _, s := range moduleStrings {
-		modules = append(modules, regexp.MustCompile(s))
+	for _, s := range starfinderModuleStrings {
+		starfinderModules = append(starfinderModules, regexp.MustCompile(s))
+	}
+	for _, s := range pathfinderModuleStrings {
+		pathfinderModules = append(pathfinderModules, regexp.MustCompile(s))
+	}
+	for _, s := range pathfinder2ModuleStrings {
+		pathfinder2Modules = append(pathfinder2Modules, regexp.MustCompile(s))
 	}
 }
 
 var s0s1Regex = regexp.MustCompile("^#([0-9]+):")
-
 var variantRegex = regexp.MustCompile(`^([0-9]+)([^0-9]+)`)
+var starfinderRegex = []*regexp.Regexp{
+	regexp.MustCompile(`^Starfinder Society Scenario #([0-9]+)[-–]([0-9]+): (.*)$`),
+}
 
 // ParseName teases apart and stores interesting information from the scenario name- season number and scenarion number
 // and stores it in the Session object. If an error occurs, error will be non-nil; some fields may be correctly
@@ -98,9 +42,10 @@ func (s *Session) ParseName(raw string) error {
 	raw = strings.TrimSpace(raw)
 	sn := raw
 
-	if scenNum, ok := staticScenarioNumbers[sn]; ok {
-		s.Season = scenNum[0]
-		s.Number = scenNum[1]
+	if scen, ok := staticScenarioNumbers[sn]; ok {
+		s.Season = scen.nums[0]
+		s.Number = scen.nums[1]
+		s.Game = scen.sys
 		s.ScenarioName = sn
 		return nil
 	}
@@ -109,10 +54,28 @@ func (s *Session) ParseName(raw string) error {
 		num := s0s1[1]
 		season, err := strconv.Atoi(num)
 		if err == nil {
+			s.Game = "Pathfinder"
 			s.Season = season / 29
 			s.Number = season
 			s.ScenarioName = strings.TrimSpace(sn[strings.Index(sn, " ")+1:])
 			return nil
+		}
+	}
+
+	for _, sfre := range starfinderRegex {
+		if sf := sfre.FindStringSubmatch(sn); sf != nil {
+			season, err := strconv.Atoi(sf[1])
+			var scenario int
+			if err == nil {
+				scenario, err = strconv.Atoi(sf[2])
+			}
+			if err == nil {
+				s.Game = "Starfinder"
+				s.Season = season
+				s.Number = scenario
+				s.ScenarioName = strings.TrimSpace(sf[3])
+				return nil
+			}
 		}
 	}
 
@@ -121,8 +84,21 @@ func (s *Session) ParseName(raw string) error {
 
 	if sn[0] != '#' {
 		s.ScenarioName = strings.TrimSpace(raw)
-		for _, re := range modules {
+		for _, re := range pathfinderModules {
 			if re.MatchString(raw) {
+				s.Game = "Pathfinder"
+				return nil
+			}
+		}
+		for _, re := range pathfinder2Modules {
+			if re.MatchString(raw) {
+				s.Game = "Pathfinder2"
+				return nil
+			}
+		}
+		for _, re := range starfinderModules {
+			if re.MatchString(raw) {
+				s.Game = "Starfinder"
 				return nil
 			}
 		}
@@ -163,6 +139,7 @@ func (s *Session) ParseName(raw string) error {
 
 	s.Number = number
 	s.ScenarioName = strings.TrimSpace(strings.TrimLeft(sn[term+len(s.Variant):], ":— "))
+	s.Game = "Pathfinder"
 	return nil
 }
 
@@ -172,6 +149,7 @@ const (
 	scenarioCell = 2
 	eventCell    = 4
 	playerCell   = 7
+	charNameCell = 8
 	prestigeCell = 10
 	maxCell      = 10
 )
@@ -181,7 +159,7 @@ const (
 // time string, which is retrieved from the `datetime` attribute of the `time` object that occupies the first cell.
 // most parse errors will return a non-nil error and a partially hydrated session object, but some parse errors will
 // return a `nil` session object.
-func sessionFromCells(cells []string) (*Session, error) {
+func sessionFromCells(characters []types.Character, cells []string) (*types.Session, error) {
 	if len(cells) < maxCell {
 		return nil, fmt.Errorf("expected >=%d elements in cells, received %d", maxCell, len(cells))
 	}
@@ -190,7 +168,7 @@ func sessionFromCells(cells []string) (*Session, error) {
 	if cells[dateCell] != "" {
 		t, err := time.Parse(time.RFC3339, cells[dateCell])
 		if err != nil {
-			return ret, fmt.Errorf("expected first cell to be RFC3339 date, but could not parse %q: %s", cells[dateCell], err)
+			return &ret.Session, fmt.Errorf("expected first cell to be RFC3339 date, but could not parse %q: %s", cells[dateCell], err)
 		}
 		ret.Date = t
 	} else {
@@ -199,13 +177,13 @@ func sessionFromCells(cells []string) (*Session, error) {
 
 	err := ret.ParseName(cells[scenarioCell])
 	if err != nil {
-		return ret, fmt.Errorf("expected sixth cell to be scenario name, but could not parse %q: %s", cells[scenarioCell], err)
+		return &ret.Session, fmt.Errorf("expected sixth cell to be scenario name, but could not parse %q: %s", cells[scenarioCell], err)
 	}
 
 	evNumStr := cells[eventCell]
 	evNum, err := strconv.ParseInt(evNumStr, 10, 64)
 	if err != nil {
-		return ret, fmt.Errorf("expected second cell to be event number, but could not parse %q: %s", evNumStr, err)
+		return &ret.Session, fmt.Errorf("expected second cell to be event number, but could not parse %q: %s", evNumStr, err)
 	}
 	ret.EventNumber = append(ret.EventNumber, evNum)
 
@@ -213,15 +191,15 @@ func sessionFromCells(cells []string) (*Session, error) {
 		charNumStr := cells[playerCell]
 		charNumDash := strings.Index(charNumStr, "-")
 		if charNumDash == -1 {
-			return ret, fmt.Errorf("expected eighth cell to contain character number, but %q did not contain dash", charNumStr)
+			return &ret.Session, fmt.Errorf("expected eighth cell to contain character number, but %q did not contain dash", charNumStr)
 		}
 		charNumPart := strings.TrimLeft(charNumStr[charNumDash:], "-")
 		if charNumPart == "" {
-			ret.Character = append(ret.Character, -1)
+			ret.Character = append(ret.Character, 0)
 		} else {
 			charNum, err := strconv.Atoi(charNumPart)
 			if err != nil {
-				return ret, fmt.Errorf("in seventh cell %q, could not parse character number part %q: %s", charNumStr, charNumPart, err)
+				return &ret.Session, fmt.Errorf("in seventh cell %q, could not parse character number part %q: %s", charNumStr, charNumPart, err)
 			}
 			ret.Character = append(ret.Character, charNum)
 			if charNum >= 700 {
@@ -232,50 +210,14 @@ func sessionFromCells(cells []string) (*Session, error) {
 		}
 		ret.Player = true
 	} else {
-		ret.Character = append(ret.Character, -2)
 		ret.GM = true
-	}
-
-	return ret, nil
-}
-
-type SessionsByDate []*Session
-
-func (s SessionsByDate) Len() int {
-	return len(s)
-}
-
-func (s SessionsByDate) Less(a, b int) bool {
-	return s[a].Date.Before(s[b].Date)
-}
-
-func (s SessionsByDate) Swap(a, b int) {
-	s[a], s[b] = s[b], s[a]
-}
-
-var _ sort.Interface = (SessionsByDate)(nil)
-
-func DeDupe(in []*Session) (out []*Session) {
-	sessionsByName := map[string]*Session{}
-	for _, session := range in {
-		previous, ok := sessionsByName[session.ScenarioName]
-		if ok {
-			previous.Character = append(previous.Character, session.Character...)
-			previous.EventNumber = append(previous.EventNumber, session.EventNumber...)
-			previous.Player = previous.Player || session.Player
-			previous.GM = previous.GM || session.GM
-			if previous.Game == "" {
-				previous.Game = session.Game
+		for _, char := range characters {
+			if char.Name == cells[charNameCell] {
+				ret.Character = append(ret.Character, -1*char.Number)
+				break
 			}
-		} else {
-			sessionsByName[session.ScenarioName] = session
 		}
 	}
 
-	out = []*Session{}
-	for _, session := range sessionsByName {
-		out = append(out, session)
-	}
-	sort.Sort(SessionsByDate(out))
-	return out
+	return &ret.Session, nil
 }

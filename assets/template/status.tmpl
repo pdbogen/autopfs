@@ -1,0 +1,12 @@
+{{template "header" .}}
+<script>var Entrypoint = "Status"</script>
+{{if .Job.Done}}
+    This job is complete! <a href="/html?id={{.Job.JobId}}">View the Results</a>.<br/>
+{{else}}
+    This can potentially take a few minutes. Please hold tight.<br/>
+{{end}}
+Status: <span id="jobState">{{.Job.State}}</span><br/>
+Job Log:<br/>
+<ul id="messageList">
+</ul>
+{{template "footer"}}

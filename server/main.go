@@ -2,13 +2,18 @@ package main
 
 import (
 	"context"
+	"crypto/sha512"
+	"encoding/base64"
 	"encoding/csv"
 	"flag"
 	"fmt"
+	"github.com/NYTimes/gziphandler"
 	bolt "github.com/coreos/bbolt"
+	"github.com/lpar/gzipped"
 	"github.com/op/go-logging"
 	log2 "github.com/pdbogen/autopfs/log"
 	"github.com/pdbogen/autopfs/paizo"
+	"io"
 	"math/rand"
 	"net/http"
 	"os"
@@ -18,113 +23,6 @@ import (
 )
 
 var log = log2.Log
-
-func Welcome(rw http.ResponseWriter, req *http.Request) {
-	rw.Header().Add("content-type", "text/html")
-	fmt.Fprintf(rw, `
-Welcome! Provide your <em>Paizo email and password</em> below to generate a CSV export of your adventures.<br/>
-Your email address and password are never stored or logged by this system.<br/>
-<form method=POST action=/begin>
-  <input name=email placeholder="e-mail address"><br/>
-  <input type=password name=password placeholder="password"><br/>
-  <input type=submit><br/>
-</form><br/>
-This tool is open source. You're more than welcome to inspect the <a href="https://github.com/pdbogen/autopfs">Source Code</a> if that will help you trust it.<br/>
-	`)
-}
-
-func Begin(db *bolt.DB, jobsWg *sync.WaitGroup) func(rw http.ResponseWriter, req *http.Request) {
-	return func(rw http.ResponseWriter, req *http.Request) {
-
-		if err := req.ParseForm(); err != nil {
-			http.Error(rw, "hmm, that request didn't look right. Go back and try again, perhaps?", http.StatusBadRequest)
-			return
-		}
-
-		email := req.FormValue("email")
-		pass := req.FormValue("password")
-
-		if email == "" {
-			http.Error(rw, "Sorry, email address is required. Go back and try again?", http.StatusBadRequest)
-			return
-		}
-
-		if pass == "" {
-			http.Error(rw, "Sorry, password is required. Go back and try again?", http.StatusBadRequest)
-		}
-
-		tokenBytes := make([]byte, 32)
-		if n, err := rand.Read(tokenBytes); n != 32 {
-			log.Errorf("could not generate token bytes: %s", err)
-			http.Error(rw, msgInternalServerError, http.StatusInternalServerError)
-			return
-		}
-		token := fmt.Sprintf("%x", tokenBytes)
-
-		job := &Job{
-			JobId:    token,
-			State:    "init",
-			Sessions: nil,
-			Email:    email,
-			Pass:     pass,
-		}
-
-		if err := job.Save(db); err != nil {
-			log.Errorf("saving job %q to DB: %v", token, err)
-			http.Error(rw, msgInternalServerError, http.StatusInternalServerError)
-			return
-		}
-
-		jobsWg.Add(1)
-		go job.Run(db, jobsWg)
-
-		http.Redirect(rw, req, "/status?id="+token, http.StatusFound)
-	}
-}
-
-func Status(db *bolt.DB) func(rw http.ResponseWriter, req *http.Request) {
-	return func(rw http.ResponseWriter, req *http.Request) {
-		if err := req.ParseForm(); err != nil {
-			http.Error(rw, "hmm, that request didn't look right. Go back and try again, perhaps?", http.StatusBadRequest)
-			return
-		}
-
-		id := req.FormValue("id")
-		if id == "" {
-			http.Error(rw, "Sorry; I can't get a request status without a request id.", http.StatusBadRequest)
-			return
-		}
-
-		job, err := Load(db, id)
-		if err != nil {
-			log.Errorf("retrieving job %q from DB: %v", id, err)
-			http.Error(rw, msgInternalServerError, http.StatusInternalServerError)
-			return
-		}
-
-		if job == nil {
-			http.Error(rw, "Sorry, I could not find that job.", http.StatusNotFound)
-			return
-		}
-
-		if req.FormValue("view") == "" {
-			if job.Done() {
-				http.Redirect(rw, req, fmt.Sprintf("/html?id=%s", id), http.StatusFound)
-				return
-			} else {
-				rw.Header().Add("Refresh", "1; url=/status?id="+id)
-			}
-		}
-
-		rw.Header().Add("content-type", "text/html")
-		if err := StatusTemplate.Execute(rw, map[string]interface{}{
-			"Title": "Job Status",
-			"Job":   job,
-		}); err != nil {
-			log.Errorf("rendering status template: %v", err)
-		}
-	}
-}
 
 func Csv(db *bolt.DB) func(rw http.ResponseWriter, req *http.Request) {
 	return func(rw http.ResponseWriter, req *http.Request) {
@@ -170,8 +68,30 @@ func Csv(db *bolt.DB) func(rw http.ResponseWriter, req *http.Request) {
 	}
 }
 
+var JsHash string
+var CssHash string
+
+const JsFile = "js/autopfs.wasm.gz"
+const CssFile = "css/autopfs.css"
+
+func hash(file string) string {
+	f, err := assets.Open(file)
+	if err != nil {
+		log.Fatalf("could not open %q: %s", file, err)
+	}
+	defer f.Close()
+
+	h := sha512.New()
+	if _, err := io.Copy(h, f); err != nil {
+		log.Fatalf("hashing %q: %s", file, err)
+	}
+	return base64.StdEncoding.EncodeToString(h.Sum(nil))
+}
+
 func init() {
 	rand.Seed(time.Now().UnixNano())
+	JsHash = hash(JsFile)
+	CssHash = hash(CssFile)
 }
 
 func handleSignals(stop chan<- bool, sigs <-chan os.Signal) {
@@ -205,11 +125,13 @@ func main() {
 
 	jobsWg := &sync.WaitGroup{}
 
-	http.HandleFunc("/", Welcome)
+	http.HandleFunc("/", IndexController(db, JsHash, CssHash))
+	http.Handle("/static/", http.StripPrefix("/static/", gzipped.FileServer(assets)))
 	http.HandleFunc("/begin", Begin(db, jobsWg))
-	http.HandleFunc("/status", Status(db))
+	http.HandleFunc("/status", Status(db, JsHash, CssHash))
 	http.HandleFunc("/csv", Csv(db))
-	http.HandleFunc("/html", Html(db))
+	http.HandleFunc("/html", Html(db, JsHash, CssHash))
+	http.Handle("/json", gziphandler.GzipHandler(http.HandlerFunc(GetJob(db))))
 	server := http.Server{Addr: fmt.Sprintf(":%d", *port)}
 	go func() {
 		log.Infof("Starting up on port %d", *port)
@@ -218,7 +140,9 @@ func main() {
 
 	<-stop
 	log.Infof("Shutting down...")
-	server.Shutdown(context.Background())
+	if err := server.Shutdown(context.Background()); err != nil {
+		log.Errorf("during shutdown: %s", err)
+	}
 	jobsWg.Wait()
 	log.Infof("Shutdown complete. Bye!")
 }

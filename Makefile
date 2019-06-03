@@ -19,6 +19,7 @@ push: .push
 
 autopfs: ${shell find -name \*.go} go.mod
 	go fmt github.com/pdbogen/autopfs/...
+	go generate ./...
 	go build -o autopfs github.com/pdbogen/autopfs/server
 
 clean:

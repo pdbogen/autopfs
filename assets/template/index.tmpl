@@ -1,0 +1,25 @@
+{{template "header" .}}
+
+Welcome! Provide your <em>Paizo email and password</em> below to generate a CSV export of your adventures.<br/>
+
+Your email address and password are never stored or logged by this system.<br/>
+
+<form method=POST action=/begin>
+    <input name=email placeholder="e-mail address"><br/>
+    <input type=password name=password placeholder="password"><br/>
+    <input type=submit><br/>
+</form><br/>
+
+This tool is open source. You're more than welcome to inspect the <a href="https://github.com/pdbogen/autopfs">Source
+    Code</a> if that will help you trust it.<br/>
+
+{{if .Jobs}}
+    If you like, you could review one of your past retrievals. These are not automatically updated, so pay close attention to the date.
+    <ul>
+        {{range .Jobs}}
+            <li>{{.JobDate}}</li>
+        {{end}}
+    </ul>
+{{end}}
+
+{{template "footer"}}

@@ -1,0 +1,43 @@
+tr:nth-of-type(even) {
+    background: #c0c0c0;
+}
+
+a {
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+div.container {
+    display: flex;
+}
+
+div.menu {
+    float: left;
+    width: 15em;
+}
+
+div.menu, div.activeFilters {
+    background-color: #e0e0e0;
+    padding: .5em .5em .5em .5em;
+}
+
+span.filter {
+    padding: .1em .1em .1em .1em;
+    margin-left: .5em;
+    background-color: #c0e0c0;
+    border-radius: .5em;
+}
+
+span.filterRemove {
+    padding: .1em;
+    background-color: #e0c0c0;
+    border-radius: .5em;
+    cursor: pointer;
+}
+
+th.sorter {
+    cursor: pointer;
+}

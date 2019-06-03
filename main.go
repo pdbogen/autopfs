@@ -5,6 +5,7 @@ import (
 	"flag"
 	"github.com/op/go-logging"
 	"github.com/pdbogen/autopfs/paizo"
+	"github.com/pdbogen/autopfs/types"
 	"os"
 )
 
@@ -13,6 +14,7 @@ func main() {
 	pass := flag.String("password", "", "password to use for paizo sign in")
 	loglevel := flag.String("loglevel", "info", "set to DEBUG for more logging, or INFO or ERROR for less")
 	out := flag.String("out", "sessions.csv", "file to which CSV-formatted results should be saved")
+	charactersOnly := flag.Bool("characters", false, "just retrieve characters")
 	flag.Parse()
 
 	lvl, err := logging.LogLevel(*loglevel)
@@ -28,8 +30,20 @@ func main() {
 	}
 	log.Debug("Login OK!")
 
+	log.Debug("Retrieving characters...")
+	characters, err := pzo.GetCharacters()
+	if err != nil {
+		log.Fatalf("retrieving characters: %s", err)
+	}
+	for i, c := range characters {
+		log.Infof("Character %d: %s", i, c)
+	}
+	if *charactersOnly {
+		os.Exit(0)
+	}
+
 	log.Debug("Retrieving sessions...")
-	psessions, gsessions, err := pzo.GetSessions(func(cur, total int) {
+	psessions, gsessions, err := pzo.GetSessions(characters, func(cur, total int) {
 		log.Debugf("%d/%d", cur, total)
 	})
 	if err != nil {
@@ -41,7 +55,7 @@ func main() {
 	}
 	log.Infof("got %d player sessions, %d gm sessions", len(psessions), len(gsessions))
 
-	sessions := paizo.DeDupe(append(psessions, gsessions...))
+	sessions := types.DeDupe(append(psessions, gsessions...))
 
 	log.Infof("Writing %d sessions out to %q...", len(sessions), *out)
 	outFile, err := os.OpenFile(*out, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(0644))

@@ -7,6 +7,7 @@ import (
 	"github.com/headzoo/surf"
 	"github.com/headzoo/surf/browser"
 	"github.com/op/go-logging"
+	"github.com/pdbogen/autopfs/types"
 	"regexp"
 	"strconv"
 	"strings"
@@ -16,12 +17,6 @@ var log = logging.MustGetLogger("paizo")
 
 type Paizo struct {
 	bow *browser.Browser
-}
-
-// AddModule registers at runtime a new module, which is to say a "scenario name" that does not have an associated
-// season and scenario number.
-func AddModule(mod *regexp.Regexp) {
-	modules = append(modules, mod)
 }
 
 // Login creates and returns a new Paizo object with an active session. Logging in can take several seconds; so you
@@ -118,18 +113,22 @@ func GetSessionCount(bow *browser.Browser) (int, error) {
 // GetSessions returns a de-duplicated (see DeDupe) list of sessions for the user that the Paizo object is logged into.
 // If sessions cannot be retrieved or parse, err is non-nil. In such a case, sessions may by non-nil and still contain
 // useful data, especially if the error related to the parsing of a specific session.
-func (p *Paizo) GetSessions(progress func(cur, total int)) (playerSessions []*Session, gmSessions []*Session, err error) {
+func (p *Paizo) GetSessions(characters []types.Character, progress func(cur, total int)) (playerSessions []*types.Session, gmSessions []*types.Session, err error) {
 	bow := p.bow
 	parseErrors := []string{}
 
 	pageUrl := "https://paizo.com/cgi-bin/WebObjects/Store.woa/wa/browse?path=organizedPlay/myAccount/allsessions#tabs"
 
+	if progress != nil {
+		progress(0, 0)
+	}
+
 	if err := bow.Open(pageUrl); err != nil {
 		return nil, nil, fmt.Errorf("opening page %q: %s", pageUrl, err)
 	}
 	log.Debugf("Loaded sessions page %q", bow.Title())
-	playerSessions = []*Session{}
-	gmSessions = []*Session{}
+	playerSessions = []*types.Session{}
+	gmSessions = []*types.Session{}
 
 	for {
 		rows := bow.Find("div#results table tr")
@@ -151,7 +150,7 @@ func (p *Paizo) GetSessions(progress func(cur, total int)) (playerSessions []*Se
 				cells[dateCell] = datetime
 			}
 
-			sess, err := sessionFromCells(cells)
+			sess, err := sessionFromCells(characters, cells)
 			if err != nil {
 				parseErrors = append(parseErrors, fmt.Sprintf("trouble parsing row %q: %s",
 					regexp.MustCompile(" +").ReplaceAllString(
@@ -198,5 +197,5 @@ func (p *Paizo) GetSessions(progress func(cur, total int)) (playerSessions []*Se
 	if len(parseErrors) > 0 {
 		err = fmt.Errorf("Parse errors occurred: %s", strings.Join(parseErrors, ", "))
 	}
-	return DeDupe(playerSessions), DeDupe(gmSessions), err
+	return types.DeDupe(playerSessions), types.DeDupe(gmSessions), err
 }
