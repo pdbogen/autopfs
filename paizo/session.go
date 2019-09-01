@@ -202,7 +202,9 @@ func sessionFromCells(characters []types.Character, cells []string) (*types.Sess
 				return &ret.Session, fmt.Errorf("in seventh cell %q, could not parse character number part %q: %s", charNumStr, charNumPart, err)
 			}
 			ret.Character = append(ret.Character, charNum)
-			if charNum >= 700 {
+			if charNum > 1500 {
+				ret.Game = "Pathfinder2"
+			} else if charNum >= 700 {
 				ret.Game = "Starfinder"
 			} else {
 				ret.Game = "Pathfinder"

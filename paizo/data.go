@@ -16,7 +16,7 @@ var staticScenarioNumbers = map[string]struct {
 var starfinderModuleStrings = []string{
 	`^Starfinder Adventure Path #`,
 	`^Starfinder AP:`,
-	`^Starfinder Skitter Shot$`,
+	`^Starfinder Skitter (Crash|Shot)$`,
 	`^Starfinder Society Roleplaying Guild Quest: `,
 	`^Starfinder Society Quest: `,
 }

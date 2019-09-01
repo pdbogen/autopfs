@@ -1,5 +1,5 @@
 {{template "header" .}}
-<script>var Entrypoint = "Status"</script>
+<script>document.addEventListener("DOMContentLoaded", Status, false);</script>
 {{if .Job.Done}}
     This job is complete! <a href="/html?id={{.Job.JobId}}">View the Results</a>.<br/>
 {{else}}

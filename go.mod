@@ -7,8 +7,9 @@ require (
 	github.com/PuerkitoBio/goquery v0.0.0-20180324162212-ea1bc64a6308
 	github.com/andybalholm/cascadia v1.0.0 // indirect
 	github.com/coreos/bbolt v1.3.2
-	github.com/dennwc/dom v0.3.0
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/golang/gddo v0.0.0-20190419222130-af0f2af80721 // indirect
+	github.com/google/go-cmp v0.2.0 // indirect
 	github.com/gorilla/websocket v1.4.0
 	github.com/headzoo/surf v0.0.0-20170901122757-362d36475b4d
 	github.com/headzoo/ut v0.0.0-20181013193318-a13b5a7a02ca // indirect

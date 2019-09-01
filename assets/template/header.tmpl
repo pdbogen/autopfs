@@ -3,16 +3,7 @@
 <head>
     <meta charset="utf-8"/>
     <title>AutoPFS{{if .Title}}: {{.Title}}{{end}}</title>
-    <script src="static/js/wasm_exec.js"></script>
-    <script>
-        const go = new Go();
-        WebAssembly.instantiateStreaming(
-            fetch("static/js/autopfs.wasm?hash={{.JsHash}}"),
-            go.importObject
-        ).then((result) => {
-            go.run(result.instance);
-        });
-    </script>
+    <script src="static/js/autopfs.js"></script>
     <link rel="stylesheet" href="static/css/autopfs.css?hash={{.CssHash}}"/>
 </head>
 <body>

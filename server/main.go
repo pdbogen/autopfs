@@ -71,7 +71,7 @@ func Csv(db *bolt.DB) func(rw http.ResponseWriter, req *http.Request) {
 var JsHash string
 var CssHash string
 
-const JsFile = "js/autopfs.wasm.gz"
+const JsFile = "js/autopfs.js"
 const CssFile = "css/autopfs.css"
 
 func hash(file string) string {

@@ -1,8 +1,7 @@
 {{template "header" .}}
-<script>var Entrypoint = "Html"</script>
-{{$Id:=.id}}
-{{$Sort:=.Sort}}
-{{$Desc:=.Desc}}
+<script>
+    document.addEventListener("DOMContentLoaded", Html, false);
+</script>
 <div class="menu">
     <div><a href="/csv?id={{.id}}">Download as CSV</a></div>
     <div id="filters">
