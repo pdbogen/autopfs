@@ -171,7 +171,7 @@ class Character {
  */
 function WsUrl() {
     const url = new URL(location.href);
-    if (url.protocol === "https") {
+    if (url.protocol.startsWith("https")) {
         url.protocol = "wss"
     } else {
         url.protocol = "ws"
@@ -243,7 +243,7 @@ let sortColumn = "Date";
 let sortAscend = true;
 
 function Html() {
-    BuildHeader();
+    RenderHeader();
 
     const JsonUrl = new URL(location.href);
     JsonUrl.pathname = "/json";
@@ -256,16 +256,26 @@ function Html() {
     });
 }
 
-function BuildHeader() {
+function RenderHeader() {
     const prevTableHeader = document.getElementById("jobTableHead");
     const table = prevTableHeader.parentNode;
-    const tableHeader = document.createElement("THEAD");
+    const tableHeader = document.createElement("THEAD")
+    tableHeader.id = prevTableHeader.id;
+
     Columns.forEach(column => {
         const el = document.createElement("TH");
         const a = document.createElement("a");
+        a.id = `col_hd_${column.Name}`;
         a.onclick = SortBy(column);
         a.innerText = column.Name;
         el.appendChild(a);
+        if (sortColumn === column.Name) {
+            if (sortAscend) {
+                el.appendChild(document.createTextNode("\u25b2"));
+            } else {
+                el.appendChild(document.createTextNode("\u25bc"));
+            }
+        }
         tableHeader.appendChild(el);
     });
     table.insertBefore(tableHeader, prevTableHeader);
@@ -289,6 +299,7 @@ function SortBy(column) {
             return sortAscend ? column.Compare(i, j, sortAscend) : column.Compare(j, i, sortAscend);
         });
         Render(job);
+        RenderHeader();
     }
 }
 

@@ -8,7 +8,7 @@ restart: .push
 push: .push
 .push: .docker
 	@ set -e; \
-	eval "$$(aws ecr get-login)" && \
+	eval "$$(aws ecr get-login --no-include-email)" && \
 	docker push ${IMAGE_URL} && \
 	touch .push
 
@@ -17,7 +17,7 @@ push: .push
 	docker tag autopfs ${IMAGE_URL}
 	touch .docker
 
-autopfs: ${shell find -name \*.go} go.mod
+autopfs: ${shell find -name \*.go -o -name \*.js -o -name \*.css} go.mod
 	go fmt github.com/pdbogen/autopfs/...
 	go generate ./...
 	go build -o autopfs github.com/pdbogen/autopfs/server
