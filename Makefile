@@ -3,12 +3,11 @@
 IMAGE_URL ?= 248174752766.dkr.ecr.us-west-1.amazonaws.com/autopfs
 
 restart: .push
-	ssh core@mapbot.cernu.us sudo systemctl restart autopfs
+	ssh admin@mapbot.cernu.us sudo systemctl restart autopfs
 
 push: .push
 .push: .docker
 	@ set -e; \
-	eval "$$(aws ecr get-login --no-include-email)" && \
 	docker push ${IMAGE_URL} && \
 	touch .push
 
@@ -26,6 +25,6 @@ clean:
 	rm -f .push .docker autopfs
 
 tail:
-	ssh core@mapbot.cernu.us journalctl -u autopfs -f
+	ssh admin@mapbot.cernu.us journalctl -u autopfs -f
 nginx_tail:
-	ssh core@mapbot.cernu.us journalctl -u nginx -f
+	ssh admin@mapbot.cernu.us journalctl -u nginx -f
