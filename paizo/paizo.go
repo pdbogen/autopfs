@@ -61,7 +61,7 @@ func Login(email, pass string) (*Paizo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("setting email input `e`: %s", err)
 	}
-	err = form.Set("z", pass)
+	err = form.Set("zzz", pass)
 	if err != nil {
 		return nil, fmt.Errorf("setting password input `z`: %s", err)
 	}
